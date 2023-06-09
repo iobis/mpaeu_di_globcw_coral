@@ -1,0 +1,191 @@
+---
+title: "Marine biodiversity data ingestion for OBIS (DwC translation)"
+subtitle: "Global cold-water coral diversity dataset"
+author:
+- [your name here]
+date: "`r Sys.Date()`"
+output:
+  html_document:
+    df_print: paged
+    number_sections: yes
+    toc: yes
+    toc_depth: 3
+    toc_float: yes
+---
+
+This document describes how we map the checklist data to Darwin Core. The source file for this document can be found [here](https://github.com/iobis/mpaeu_di_globcw_coral/blob/master/src/obisdi_general.Rmd).
+
+```{r setup, include = FALSE}
+knitr::opts_chunk$set(echo = TRUE, warning = FALSE, message = FALSE)
+```
+
+Load libraries:
+
+```{r}
+library(tidyverse)      # Data manipulation
+library(obisdi)         # Tools for data ingestion for OBIS
+library(here)           # Get paths (important!)
+library(arrow)          # To deal with parquet files
+```
+
+# Read source data
+
+The checklist will be downloaded from FigShare. We use the `obisdi` function to do the download and also to obtain metadata. Because the files are large, we added a line to control and only download the data once and save the resulting metadata:
+
+```{r}
+# Get the path to data/raw
+raw_path <- here("data", "raw")
+
+# See if files were already downloaded
+lf <- list.files(raw_path)
+if (!any(grepl("figshare", lf))) {
+  fig_details <- get_figshare(article_id = 21997559, download_files = T,
+                              save_meta = T, path = raw_path)
+}
+```
+Following the download the details of the dataset can be accessed from the file `r paste0("data/raw/", list.files(raw_path)[grepl("figshare", list.files(raw_path))])`.
+
+```{r include=FALSE}
+meta <- read.csv(list.files(raw_path, full.names = T)[grepl("figshare", list.files(raw_path))])
+```
+
+
+Title: `r meta$title`  
+Authors: `r meta$authors`  
+Date (dmy format): `r format(as.Date(meta$date), "%d/%m/%Y")`  
+DOI: `r meta$doi`  
+URL: `r meta$url`  
+
+# Preprocessing
+
+First we reduce the size of the raw files by converting them to the `parquet` format. We keep only the flagged file which is the one that we will include in the OBIS database.
+
+```{r results='hide'}
+raw_files <- list.files(raw_path, full.names = T)
+file.remove(raw_files[-grep("Flagged|metadata", raw_files)])
+
+# We just run the conversion in the first knitting of this document
+if (any(grepl("xlsx", raw_files))) {
+  flagged <- readxl::read_xlsx(paste0(raw_path, "/databaseFlaggedFinal.xlsx"))
+  write_parquet(flagged, paste0(raw_path, "/databaseFlagged.parquet"))
+  rm(flagged)
+  file.remove(paste0(raw_path, "/databaseFlaggedFinal.xlsx"))
+}
+```
+
+Now we can load the parquet file containing the dataset we will work with.
+
+```{r}
+dataset <- read_parquet(paste0(raw_path, "/databaseFlagged.parquet"))
+head(dataset)
+```
+We will filter the dataset to remove those records that are already available on OBIS. This dataset contains records that werre directly derived from OBIS, but also some from other OBIS derived sources (like MedOBIS). In that case, we will filter by "Ocean Biogeographic Information System" (old name) and "Ocean Biodiversity Information System".
+
+```{r}
+dataset_filt <- dataset %>%
+  mutate(proc_bibliographicCitation = tolower(bibliographicCitation)) %>%
+  filter(!grepl("ocean biogeographic information system|ocean biodiversity information system", proc_bibliographicCitation)) %>%
+  select(-proc_bibliographicCitation)
+```
+
+This is a dataset that was already standardized to the DwC standard and it's almost ready to use. However, the MeasurementOrFact column will need to be translated to the right format. We start by creating a new object with the `occurrenceID` and the MoF column, and then by separating each MoF into a new column.
+
+```{r}
+flags <- dataset_filt %>%
+  select(occurrenceID, MeasurementOrFact)
+
+flags <- flags %>%
+  separate_wider_delim(cols = 2, delim = ",",
+                       names = c("flagLand", "flagVerticalRange", "flagGeographicRange")) 
+
+flags_conv <- flags %>%
+  mutate(flagLand = str_remove(str_remove(flagLand, '\\{\\".*\\"\\:\\['), "\\]"),
+         flagVerticalRange = str_remove(str_remove(flagVerticalRange, '\\".*\\"\\:\\['), "\\]"),
+         flagGeographicRange = str_remove(str_remove(flagGeographicRange, '\\".*\\"\\:\\['), "\\].")) %>%
+  mutate(across(2:4, function(x){
+    x <- gsub('\\"', "", x)
+    as.numeric(x)
+  }))
+```
+
+We can check that the conversion worked by looking into the unique values of each one:
+
+```{r}
+table(flags$flagLand)
+table(flags_conv$flagLand)
+
+table(flags$flagVerticalRange)
+table(flags_conv$flagVerticalRange)
+
+table(flags$flagGeographicRange)
+table(flags_conv$flagGeographicRange)
+```
+
+# Darwin Core mapping
+
+As we said, this dataset is already on the DwC standard, so no mapping will be necessary. However, the object we created with the flags is not on the STAR format. We adjust that with the following code:
+
+```{r}
+flags_conv <- flags_conv %>%
+  pivot_longer(cols = 2:4,
+               names_to = "measurementType",
+               values_to = "measurementValue")
+```
+
+That's all we needed to do with the data.
+
+# Post-processing
+
+As a final step, we just remove the `MeasurementOrFact` column of the other object, as this will be supplied to the IPT in a different file. 
+
+```{r}
+dataset_filt <- dataset_filt %>%
+  select(-MeasurementOrFact)
+```
+
+And those are the final objects:
+
+```{r}
+dataset_filt
+
+flags_conv
+```
+
+# Export final files
+
+We can then save the final files:
+
+```{r}
+processed_path <- here("data", "processed")
+
+write_csv(flags_conv, paste0(processed_path, "/extension.csv"))
+
+# Because the occurrence table is large and GitHub have size limitations
+# we split the file into multiple files
+div <- ceiling(nrow(dataset_filt)/10)
+splits <- seq(1, nrow(dataset_filt), by = div)
+splits[length(splits)] <- nrow(dataset_filt)
+splits <- splits[-1]
+st <- 1
+for (i in splits) {
+  write_csv(dataset_filt[st:i,],
+            paste0(processed_path, "/occurrence_part", which(splits == i),".csv"))
+  st <- i+1
+}
+# We can do a quick check that everything went ok:
+lf <- list.files(processed_path, "occurrence_part", full.names = T)
+parts <- do.call("rbind", lapply(lf, read.csv))
+
+nrow(dataset_filt) == nrow(parts)
+
+all.equal(dataset_filt$occurrenceID,
+          parts$occurrenceID)
+```
+
+And we check if the files are saved:
+
+```{r}
+list.files(processed_path)
+```
+
+
