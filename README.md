@@ -52,4 +52,4 @@ This repository was created using the
 `obisdi` package [(download here)](https://github.com/iobis/obisdi/) and was inspired by the [TrIAS Project checklist recipe](https://github.com/trias-project/checklist-recipe/). This README is a direct adaptation of the TrIAS model, with slight changes.
 <hr>
 <br>  
-<img src="src/static/obisdi_logo.png" width="60"> OBIS Data Ingestion | Ocean Biodiversity Information System <a href = "https://obis.org/">(obis.org)</a>
+<img src="src/static/obisdi_logo.png" width="60" align="right" /> OBIS Data Ingestion | Ocean Biodiversity Information System <a href = "https://obis.org/">(obis.org)</a>
