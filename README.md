@@ -46,10 +46,11 @@ Files and directories indicated with `GENERATED` should not be edited manually.
 <!-- PACKAGE DETAILS -->
 <br>
 
-<!--INSTITUTIONAL_DETAILS-->
-<!--FUNDING_DETAILS-->
+<!--INSTITUTIONAL_DETAILS--> Dataset edited by the OBIS secretariat.  <br><br>
+<!--FUNDING_DETAILS--> The harvesting of this data to OBIS is part of the MPA Europe project. <br><br>MPA Europe project has been approved under HORIZON-CL6-2021-BIODIV-01-12 — Improved science based maritime spatial planning and identification of marine protected areas.<br><br>Co-funded by the European Union. Views and opinions expressed are however those of the authors only and do not necessarily reflect those of the European Union or UK Research and Innovation. Neither the European Union nor the granting authority can be held responsible for them  <br><br>
+
 This repository was created using the
 `obisdi` package [(download here)](https://github.com/iobis/obisdi/) and was inspired by the [TrIAS Project checklist recipe](https://github.com/trias-project/checklist-recipe/). This README is a direct adaptation of the TrIAS model, with slight changes.
 <hr>
 <br>  
-<img src="src/static/obisdi_logo.png" width="60" align="right" /> OBIS Data Ingestion | Ocean Biodiversity Information System <a href = "https://obis.org/">(obis.org)</a>
+<img src="src/static/obisdi_logo.png" width="60" align="left" /> OBIS Data Ingestion | Ocean Biodiversity Information System <a href = "https://obis.org/">(obis.org)</a>
