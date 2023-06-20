@@ -152,13 +152,14 @@ That's all we needed to do with the data.
 
 # Post-processing
 
-As a final step, we remove the `MeasurementOrFact` column of the `dataset_filt` object, as this will be supplied to the IPT in a different file. We also remove some columns that can't be mapped to the DwC and that are not necessary. We also substitute all NAs to empty values.
+As a final step, we remove the `MeasurementOrFact` column of the `dataset_filt` object, as this will be supplied to the IPT in a different file. We also remove some columns that can't be mapped to the DwC and that are not necessary. We also change the `coordinateUncertaintyInMeters` column to `NA` values (because here it was used as an indicator of the existence of not of this information - i.e. `TRUE`/`FALSE`).
 
 ```{r}
 dataset_filt <- dataset_filt %>%
   select(-MeasurementOrFact, -name, -originalSourceType, -sourceBibliographicCitation,
          -depthAccuracy, -acceptedname, -aphiaID, -acceptedAphiaID, -authority, -status) %>%
-  relocate(occurrenceID)
+  relocate(occurrenceID) %>%
+  mutate(coordinateUncertaintyInMeters = NA)
 ```
 
 And those are the final objects:
