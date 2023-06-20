@@ -43,6 +43,7 @@ if (!any(grepl("figshare", lf))) {
                               save_meta = T, path = raw_path)
 }
 ```
+
 Following the download the details of the dataset can be accessed from the file `r paste0("data/raw/", list.files(raw_path)[grepl("figshare", list.files(raw_path))])`.
 
 ```{r include=FALSE}
@@ -108,19 +109,6 @@ flags_conv <- flags %>%
   }))
 ```
 
-We can check that the conversion worked by looking into the unique values of each one:
-
-```{r}
-table(flags$flagLand)
-table(flags_conv$flagLand)
-
-table(flags$flagVerticalRange)
-table(flags_conv$flagVerticalRange)
-
-table(flags$flagGeographicRange)
-table(flags_conv$flagGeographicRange)
-```
-
 # Darwin Core mapping
 
 As we said, this dataset is already on the DwC standard, so no mapping will be necessary. However, the object we created with the flags is not on the STAR format. We adjust that with the following code:
@@ -132,6 +120,25 @@ flags_conv <- flags_conv %>%
                values_to = "measurementValue")
 ```
 
+We can check that the conversion worked by looking into the unique values of each one:
+
+```{r}
+cbind(data.frame(table(flags$flagLand)),
+               Freq_conv = data.frame(table(
+                 flags_conv$measurementValue[flags_conv$measurementType == "flagLand"]
+               ))[,2])
+
+cbind(data.frame(table(flags$flagVerticalRange)),
+               Freq_conv = data.frame(table(
+                 flags_conv$measurementValue[flags_conv$measurementType == "flagVerticalRange"]
+               ))[,2])
+
+cbind(data.frame(table(flags$flagGeographicRange)),
+               Freq_conv = data.frame(table(
+                 flags_conv$measurementValue[flags_conv$measurementType == "flagGeographicRange"]
+               ))[,2])
+```
+
 That's all we needed to do with the data.
 
 # Post-processing
@@ -140,7 +147,8 @@ As a final step, we just remove the `MeasurementOrFact` column of the other obje
 
 ```{r}
 dataset_filt <- dataset_filt %>%
-  select(-MeasurementOrFact)
+  select(-MeasurementOrFact) %>%
+  relocate(occurrenceID)
 ```
 
 And those are the final objects:
