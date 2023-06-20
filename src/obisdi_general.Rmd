@@ -152,7 +152,7 @@ That's all we needed to do with the data.
 
 # Post-processing
 
-As a final step, we remove the `MeasurementOrFact` column of the `dataset_filt` object, as this will be supplied to the IPT in a different file. We also remove some columns that can't be mapped to the DwC and that are not necessary.
+As a final step, we remove the `MeasurementOrFact` column of the `dataset_filt` object, as this will be supplied to the IPT in a different file. We also remove some columns that can't be mapped to the DwC and that are not necessary. We also substitute all NAs to empty values.
 
 ```{r}
 dataset_filt <- dataset_filt %>%
@@ -187,7 +187,8 @@ splits <- splits[-1]
 st <- 1
 for (i in splits) {
   write_csv(dataset_filt[st:i,],
-            paste0(processed_path, "/occurrence_part", which(splits == i),".csv"))
+            paste0(processed_path, "/occurrence_part", which(splits == i),".csv"),
+            na = "") # We replace NA with empty because the IPT does not interpret NA
   st <- i+1
 }
 # We can do a quick check that everything went ok:
